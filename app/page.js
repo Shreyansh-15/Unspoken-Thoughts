@@ -1,65 +1,131 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect } from "react";
 
 export default function Home() {
+  const [thought, setThought] = useState("");
+  const [mood, setMood] = useState("Calm 🌙");
+  const [filter, setFilter] = useState("All");
+  const [darkMode, setDarkMode] = useState(true);
+  const [thoughts, setThoughts] = useState([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("thoughts");
+    if (saved) setThoughts(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("thoughts", JSON.stringify(thoughts));
+  }, [thoughts]);
+
+  const addThought = () => {
+    if (thought.trim() === "") return;
+
+    const newThought = {
+      text: thought,
+      mood: mood,
+      time: new Date().toLocaleString(),
+    };
+
+    setThoughts([...thoughts, newThought]);
+    setThought("");
+  };
+
+  const deleteThought = (index) => {
+    const newThoughts = thoughts.filter((_, i) => i !== index);
+    setThoughts(newThoughts);
+  };
+
+  const filteredThoughts =
+    filter === "All"
+      ? thoughts
+      : thoughts.filter((t) => t.mood === filter);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main
+      className={`min-h-screen flex flex-col items-center p-6 transition ${
+        darkMode
+          ? "bg-gradient-to-b from-black to-gray-900 text-white"
+          : "bg-gray-100 text-black"
+      }`}
+    >
+
+      {/* Toggle */}
+      <button
+        onClick={() => setDarkMode(!darkMode)}
+        className="self-end mb-4 px-4 py-1 rounded bg-yellow-400 text-black"
+      >
+        {darkMode ? "Light Mode ☀️" : "Dark Mode 🌙"}
+      </button>
+
+      <h1 className="text-5xl font-serif text-yellow-500">
+        Unspoken Thoughts
+      </h1>
+
+      <p className="text-gray-500 mt-2">
+        Write what you can't say aloud.
+      </p>
+
+      <div className="bg-gray-800/70 p-6 rounded-xl shadow-lg mt-8 w-80">
+
+        <textarea
+          placeholder="Let your thoughts flow..."
+          value={thought}
+          onChange={(e) => setThought(e.target.value)}
+          className="w-full h-24 p-3 rounded text-black"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        <select
+          value={mood}
+          onChange={(e) => setMood(e.target.value)}
+          className="w-full mt-3 p-2 rounded text-black"
+        >
+          <option>Calm 🌙</option>
+          <option>Happy ☀️</option>
+          <option>Sad 🌧</option>
+          <option>Anxious 🌫</option>
+        </select>
+
+        <button
+          onClick={addThought}
+          className="mt-4 w-full bg-yellow-500 text-black py-2 rounded-lg"
+        >
+          Save Thought
+        </button>
+
+      </div>
+
+      <select
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        className="mt-6 p-2 rounded text-black"
+      >
+        <option>All</option>
+        <option>Calm 🌙</option>
+        <option>Happy ☀️</option>
+        <option>Sad 🌧</option>
+        <option>Anxious 🌫</option>
+      </select>
+
+      <div className="mt-6 space-y-4 w-80">
+        {filteredThoughts.map((t, i) => (
+          <div
+            key={i}
+            className="bg-gray-700/80 p-4 rounded-lg shadow-md"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <p>{t.text}</p>
+            <p className="text-sm text-yellow-400">{t.mood}</p>
+            <p className="text-xs text-gray-400">{t.time}</p>
+
+            <button
+              onClick={() => deleteThought(i)}
+              className="text-red-400 text-sm mt-2"
+            >
+              Delete
+            </button>
+          </div>
+        ))}
+      </div>
+
+    </main>
   );
 }
