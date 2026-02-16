@@ -1,5 +1,8 @@
 # ✨ Unspoken Thoughts
 
+## Live App
+🌐 [https://unspoken-thoughts.vercel.app]
+
 A calm, private space to write what you feel — save what matters, release what doesn’t.  
 Built with **Next.js (App Router)** + **Firebase Auth** + **Cloud Firestore** + **PWA**.
 
