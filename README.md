@@ -3,29 +3,35 @@
 ## Live App
 🌐 [https://unspoken-thoughts.vercel.app]
 
-A calm, private space to write what you feel — save what matters, release what doesn’t.  
-Built with **Next.js (App Router)** + **Firebase Auth** + **Cloud Firestore** + **PWA**.
+A calm, private journaling + mood tracker web app built with **Next.js (App Router)** and **Firebase**.  
+Write what you feel, tag it with a mood, keep it private, and optionally share anonymously to a public support feed.
 
-## ✅ Features
-- 🔐 Authentication (Email/Password + Google Sign-In)
-- 🗒️ Create & view thoughts (real-time sync via Firestore)
-- 🧠 Mood tagging + Mood Insights chart
-- 🔎 Search + Mood filter
-- 🌬️ “Release” (gentle delete animation)
-- 🎨 Dark/Light theme toggle
-- 🔐 Optional device PIN lock (stored in localStorage)
-- 📱 PWA-ready (installable on desktop/mobile)
+## 🚀 Features
 
-## 🧰 Tech Stack
-- Next.js (App Router)
-- Firebase Authentication
-- Cloud Firestore
-- next-pwa (service worker / offline support)
+- 🔐 Firebase Auth (Google + Email/Password)
+- 📝 Save thoughts (Firestore) with mood + timestamp
+- 🔎 Search + mood filter
+- 📦 Archive (hide without deleting)
+- ⭐ Pin important thoughts
+- 🌬️ “Release” delete animation + confirm delete
+- 📊 Mood insights (bars)
+- 🗓️ Mood tracker (last 14 days)
+- 🧠 Daily prompt + quick templates
+- 🔥 Writing streak counter
+- 📥 Export backup (JSON + TXT)
+- 🟢 Online/Offline badge + PWA support
+- 🛡️ Optional device PIN + auto-lock + blur/lock on tab switch
+- 🌍 Public feed (anonymous sharing + report + delete mine)
 
----
+## 🛠 Tech Stack
 
-## 🚀 Getting Started (Local)
+- **Next.js** (App Router)
+- **Firebase** (Auth + Firestore)
+- **next-pwa** (PWA)
+- CSS (custom glass UI)
 
-### 1) Install dependencies
-```bash
-npm install
+## ✅ Setup (Local)
+
+1. Install dependencies:
+   ```bash
+   npm install

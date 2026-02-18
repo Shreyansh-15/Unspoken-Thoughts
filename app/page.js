@@ -106,7 +106,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  const [mode, setMode] = useState("login"); // login | signup
+  const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [authErr, setAuthErr] = useState("");
@@ -121,6 +121,9 @@ export default function Home() {
   const [search, setSearch] = useState("");
 
   const [showArchived, setShowArchived] = useState(false);
+
+  // ✅ Level 18: Trash view toggle
+  const [showTrash, setShowTrash] = useState(false);
 
   // UI
   const [toast, setToast] = useState(null);
@@ -160,6 +163,9 @@ export default function Home() {
   const [shareAnonName, setShareAnonName] = useState("Anonymous");
   const [showPublicFeed, setShowPublicFeed] = useState(true);
 
+  // ✅ Level 18: Import
+  const fileInputRef = useRef(null);
+
   // ---------------- TOAST ----------------
   const showToast = (msg) => {
     setToast(msg);
@@ -179,20 +185,17 @@ export default function Home() {
     setPin(savedPin);
     if (pe && savedPin) setLocked(true);
 
-    // streak
     const savedStreak = parseInt(localStorage.getItem("ut_streak") || "0", 10);
     const savedLast = localStorage.getItem("ut_last_write_day") || "";
     setStreak(Number.isFinite(savedStreak) ? savedStreak : 0);
     setLastWriteDay(savedLast);
 
-    // Level 16 settings
     const alm = parseInt(localStorage.getItem("ut_autolock_min") || "0", 10);
     setAutoLockMin(Number.isFinite(alm) ? alm : 0);
 
     setBlurOnHidden(localStorage.getItem("ut_blur_hidden") !== "false");
     setLockOnHidden(localStorage.getItem("ut_lock_hidden") === "true");
 
-    // Public name
     const nm = localStorage.getItem("ut_anon_name") || "Anonymous";
     setShareAnonName(nm);
   }, []);
@@ -222,7 +225,8 @@ export default function Home() {
     document.addEventListener("visibilitychange", onVis);
     onVis();
     return () => document.removeEventListener("visibilitychange", onVis);
-  }, [pinEnabled, lockOnHidden, locked]);
+    // ✅ removed `locked` from deps (cleaner)
+  }, [pinEnabled, lockOnHidden]);
 
   // ---------------- AUTH LISTENER ----------------
   useEffect(() => {
@@ -274,14 +278,13 @@ export default function Home() {
 
     setPublicLoading(true);
 
-    // Public feed collection = "publicThoughts"
     const q = query(collection(db, "publicThoughts"), orderBy("createdAt", "desc"));
 
     const unsub = onSnapshot(
       q,
       (snap) => {
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setPublicPosts(data.slice(0, 30)); // show latest 30
+        setPublicPosts(data.slice(0, 30));
         setPublicLoading(false);
       },
       (err) => {
@@ -440,6 +443,7 @@ export default function Home() {
       createdAt: serverTimestamp(),
       archived: false,
       pinned: false,
+      trashed: false, // ✅ Level 18
     };
 
     const lines = reflections[mood];
@@ -452,7 +456,6 @@ export default function Home() {
       await addDoc(collection(db, "thoughts"), payload);
       setText("");
 
-      // streak update
       const today = ymd();
       const prev = lastWriteDay;
 
@@ -478,26 +481,53 @@ export default function Home() {
     }
   };
 
-  const deleteThought = async (id) => {
+  // ✅ Level 18: Move to trash (instead of delete)
+  const moveToTrash = async (t) => {
     try {
-      await deleteDoc(doc(db, "thoughts", id));
-      showToast("Deleted");
+      await updateDoc(doc(db, "thoughts", t.id), {
+        trashed: true,
+        // optional: store when trashed
+        trashedAt: serverTimestamp(),
+      });
+      showToast("Moved to Trash 🗑️");
+    } catch (e) {
+      console.error(e);
+      showToast("Trash failed");
+    }
+  };
+
+  // ✅ Restore from trash
+  const restoreFromTrash = async (t) => {
+    try {
+      await updateDoc(doc(db, "thoughts", t.id), {
+        trashed: false,
+        trashedAt: null,
+      });
+      showToast("Restored ✅");
+    } catch (e) {
+      console.error(e);
+      showToast("Restore failed");
+    }
+  };
+
+  // ✅ Delete forever (only used in Trash view)
+  const deleteForever = async (t) => {
+    const ok = window.confirm("Delete forever? This cannot be undone.");
+    if (!ok) return;
+    try {
+      await deleteDoc(doc(db, "thoughts", t.id));
+      showToast("Deleted forever");
     } catch (e) {
       console.error(e);
       showToast("Delete failed");
     }
   };
 
-  const deleteThoughtConfirmed = async (t) => {
-    const ok = window.confirm("Delete this thought permanently?");
-    if (!ok) return;
-    await deleteThought(t.id);
-  };
-
-  const releaseThought = async (id) => {
-    setReleasingId(id);
+  // ✅ Release becomes gentle trash (animation + trash)
+  const releaseThought = async (t) => {
+    setReleasingId(t.id);
     setTimeout(async () => {
-      await deleteThought(id);
+      await moveToTrash(t);
       setReleasingId(null);
     }, 450);
   };
@@ -523,9 +553,7 @@ export default function Home() {
   };
 
   const copyThought = async (t) => {
-    const content = `${t.text}\n\nMood: ${t.mood || ""}\nTime: ${
-      formatTime(t.createdAt) || ""
-    }`;
+    const content = `${t.text}\n\nMood: ${t.mood || ""}\nTime: ${formatTime(t.createdAt) || ""}`;
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(content);
@@ -551,6 +579,7 @@ export default function Home() {
       mood: t.mood || "",
       archived: !!t.archived,
       pinned: !!t.pinned,
+      trashed: !!t.trashed,
       createdAt: formatTime(t.createdAt) || "",
       uid: t.uid || "",
     }));
@@ -584,6 +613,54 @@ export default function Home() {
     a.click();
     URL.revokeObjectURL(url);
     showToast("TXT exported 📄");
+  };
+
+  // ✅ Level 18: Import JSON
+  const openImport = () => fileInputRef.current?.click();
+
+  const onImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-import same file
+    if (!file) return;
+
+    if (!user) return showToast("Please login first");
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (!Array.isArray(data)) {
+        return showToast("Invalid file (expected an array)");
+      }
+
+      // import max 200 to keep it safe
+      const items = data.slice(0, 200);
+
+      let okCount = 0;
+      for (const it of items) {
+        const t = (it?.text ?? "").toString().trim();
+        if (!t) continue;
+
+        const moodKey = MOODS.some((m) => m.key === it?.mood) ? it.mood : "Calm";
+
+        await addDoc(collection(db, "thoughts"), {
+          uid: user.uid,
+          text: t.slice(0, 500),
+          mood: moodKey,
+          archived: !!it?.archived,
+          pinned: !!it?.pinned,
+          trashed: !!it?.trashed,
+          createdAt: serverTimestamp(), // keep simple + consistent
+        });
+
+        okCount += 1;
+      }
+
+      showToast(`Imported ${okCount} ✅`);
+    } catch (err) {
+      console.error(err);
+      showToast("Import failed (bad JSON?)");
+    }
   };
 
   const clearFilters = () => {
@@ -642,17 +719,30 @@ export default function Home() {
   // ---------------- FILTERED & SORTED ----------------
   const filteredThoughts = useMemo(() => {
     const s = search.trim().toLowerCase();
+
     const list = thoughts.filter((t) => {
+      const isTrashed = !!t.trashed;
+
+      // ✅ Trash filter (Level 18)
+      if (showTrash) {
+        if (!isTrashed) return false;
+      } else {
+        if (isTrashed) return false;
+      }
+
       const archiveOk = showArchived ? true : !t.archived;
       const moodOk = filterMood === "All" || t.mood === filterMood;
       const textOk = !s || (t.text || "").toLowerCase().includes(s);
       return archiveOk && moodOk && textOk;
     });
 
+    // Pinned first (only for non-trash view)
+    if (showTrash) return list;
+
     const pinned = list.filter((t) => !!t.pinned);
     const normal = list.filter((t) => !t.pinned);
     return [...pinned, ...normal];
-  }, [thoughts, filterMood, search, showArchived]);
+  }, [thoughts, filterMood, search, showArchived, showTrash]);
 
   // ---------------- MOOD INSIGHTS (bars) ----------------
   const moodCounts = useMemo(() => {
@@ -667,12 +757,11 @@ export default function Home() {
 
   // ---------------- MOOD TRACKER (Last 14 days) ----------------
   const moodTracker = useMemo(() => {
-    // map date -> latest mood that day
     const byDay = {};
     for (const t of thoughts) {
+      if (t.trashed) continue; // ✅ ignore trashed thoughts for tracker
       const k = dateKeyFromCreatedAt(t.createdAt);
       if (!k) continue;
-      // because thoughts are already desc by createdAt from Firestore, the first time we see a day = latest
       if (!byDay[k]) byDay[k] = t.mood || "Calm";
     }
 
@@ -807,6 +896,15 @@ export default function Home() {
 
   return (
     <main className={`ut-page ${theme === "light" ? "ut-light" : ""}`}>
+      {/* ✅ hidden file input for import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/json"
+        style={{ display: "none" }}
+        onChange={onImportFile}
+      />
+
       <div className="ut-shell" style={blurWrapStyle}>
         {/* HEADER */}
         <div className="ut-header">
@@ -820,33 +918,59 @@ export default function Home() {
 
           <div className="ut-actions">
             <div className="ut-pill">{isOnline ? "🟢 Online" : "🟠 Offline"}</div>
-            <div className="ut-pill">🔥 Streak: <b>{streak}</b></div>
-            <div className="ut-pill">Signed in as <b>{user.email || "User"}</b></div>
+            <div className="ut-pill">
+              🔥 Streak: <b>{streak}</b>
+            </div>
+            <div className="ut-pill">
+              Signed in as <b>{user.email || "User"}</b>
+            </div>
 
             <button className="ut-btn ut-btn-ghost" onClick={toggleTheme}>
               {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
             </button>
 
+            {/* ✅ Level 18: Trash toggle */}
+            <button className="ut-btn ut-btn-ghost" onClick={() => setShowTrash((v) => !v)}>
+              {showTrash ? "⬅️ Back" : "🗑️ Trash"}
+            </button>
+
             {!pinEnabled ? (
-              <button className="ut-btn ut-btn-ghost" onClick={enablePin}>🔐 Enable PIN</button>
+              <button className="ut-btn ut-btn-ghost" onClick={enablePin}>
+                🔐 Enable PIN
+              </button>
             ) : (
               <>
-                <button className="ut-btn ut-btn-ghost" onClick={lockNow}>🔒 Lock now</button>
-                <button className="ut-btn ut-btn-ghost" onClick={setAutoLock}>⏱️ Auto-lock</button>
+                <button className="ut-btn ut-btn-ghost" onClick={lockNow}>
+                  🔒 Lock now
+                </button>
+                <button className="ut-btn ut-btn-ghost" onClick={setAutoLock}>
+                  ⏱️ Auto-lock
+                </button>
                 <button className="ut-btn ut-btn-ghost" onClick={toggleLockHidden}>
                   {lockOnHidden ? "🔐 Lock on tab: ON" : "🔐 Lock on tab: OFF"}
                 </button>
                 <button className="ut-btn ut-btn-ghost" onClick={toggleBlurHidden}>
                   {blurOnHidden ? "🙈 Blur on tab: ON" : "🙈 Blur on tab: OFF"}
                 </button>
-                <button className="ut-btn ut-btn-ghost" onClick={disablePin}>🔓 Disable PIN</button>
+                <button className="ut-btn ut-btn-ghost" onClick={disablePin}>
+                  🔓 Disable PIN
+                </button>
               </>
             )}
 
-            <button className="ut-btn ut-btn-ghost" onClick={exportJSON}>📥 Export JSON</button>
-            <button className="ut-btn ut-btn-ghost" onClick={exportTXT}>📄 Export TXT</button>
+            <button className="ut-btn ut-btn-ghost" onClick={exportJSON}>
+              📥 Export JSON
+            </button>
+            <button className="ut-btn ut-btn-ghost" onClick={exportTXT}>
+              📄 Export TXT
+            </button>
+            <button className="ut-btn ut-btn-ghost" onClick={openImport}>
+              📤 Import JSON
+            </button>
 
-            <button className="ut-btn ut-btn-primary" onClick={doLogout}>Logout</button>
+            <button className="ut-btn ut-btn-primary" onClick={doLogout}>
+              Logout
+            </button>
           </div>
         </div>
 
@@ -857,7 +981,9 @@ export default function Home() {
             <div className="ut-card-title">Today</div>
             <div className="ut-prompt">“{dailyPrompt}”</div>
 
-            <div className="ut-mini" style={{ marginTop: 10 }}>Quick templates</div>
+            <div className="ut-mini" style={{ marginTop: 10 }}>
+              Quick templates
+            </div>
             <div className="ut-templates">
               {QUICK_TEMPLATES.map((t) => (
                 <button
@@ -892,8 +1018,12 @@ export default function Home() {
                 {saving ? "Saving..." : "Save thought"}
               </button>
 
-              <button className="ut-btn ut-btn-ghost" onClick={() => setText("")}>Clear</button>
-              <button className="ut-btn ut-btn-ghost" onClick={clearFilters}>Clear filters</button>
+              <button className="ut-btn ut-btn-ghost" onClick={() => setText("")}>
+                Clear
+              </button>
+              <button className="ut-btn ut-btn-ghost" onClick={clearFilters}>
+                Clear filters
+              </button>
 
               <div className="ut-spacer" />
 
@@ -953,12 +1083,14 @@ export default function Home() {
 
           {/* LEFT: Thoughts list */}
           <div className="ut-card ut-card-pad ut-card-big">
-            <div className="ut-card-title">Your thoughts</div>
+            <div className="ut-card-title">{showTrash ? "Trash" : "Your thoughts"}</div>
 
             {thoughtsLoading ? (
               <div className="ut-empty">Loading your thoughts…</div>
             ) : filteredThoughts.length === 0 ? (
-              <div className="ut-empty">No thoughts yet. Write one above — it’ll appear here instantly.</div>
+              <div className="ut-empty">
+                {showTrash ? "Trash is empty." : "No thoughts yet. Write one above — it’ll appear here instantly."}
+              </div>
             ) : (
               <div className="ut-list">
                 {filteredThoughts.map((t) => (
@@ -974,8 +1106,9 @@ export default function Home() {
                     <div className="ut-item-head">
                       <div className="ut-item-mood">
                         {(moodEmoji[t.mood] || "🫧")} {t.mood || "—"}
-                        {t.pinned ? <span style={{ marginLeft: 10, opacity: 0.8 }}>⭐ Pinned</span> : null}
-                        {t.archived ? <span style={{ marginLeft: 10, opacity: 0.7 }}>📦 Archived</span> : null}
+                        {!showTrash && t.pinned ? <span style={{ marginLeft: 10, opacity: 0.8 }}>⭐ Pinned</span> : null}
+                        {!showTrash && t.archived ? <span style={{ marginLeft: 10, opacity: 0.7 }}>📦 Archived</span> : null}
+                        {showTrash ? <span style={{ marginLeft: 10, opacity: 0.7 }}>🗑️ Trashed</span> : null}
                       </div>
                       <div className="ut-item-time">{formatTime(t.createdAt) || ""}</div>
                     </div>
@@ -983,27 +1116,40 @@ export default function Home() {
                     <div className="ut-item-text">{t.text}</div>
 
                     <div className="ut-row ut-row-tight">
-                      <button className="ut-btn ut-btn-ghost" onClick={() => togglePinned(t)}>
-                        {t.pinned ? "⭐ Unpin" : "⭐ Pin"}
-                      </button>
+                      {showTrash ? (
+                        <>
+                          <button className="ut-btn ut-btn-ghost" onClick={() => restoreFromTrash(t)}>
+                            ✅ Restore
+                          </button>
+                          <button className="ut-btn ut-btn-danger" onClick={() => deleteForever(t)}>
+                            ❌ Delete forever
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button className="ut-btn ut-btn-ghost" onClick={() => togglePinned(t)}>
+                            {t.pinned ? "⭐ Unpin" : "⭐ Pin"}
+                          </button>
 
-                      <button className="ut-btn ut-btn-ghost" onClick={() => copyThought(t)}>📋 Copy</button>
+                          <button className="ut-btn ut-btn-ghost" onClick={() => copyThought(t)}>📋 Copy</button>
 
-                      <button className="ut-btn ut-btn-ghost" onClick={() => toggleArchive(t)}>
-                        {t.archived ? "↩️ Unarchive" : "📦 Archive"}
-                      </button>
+                          <button className="ut-btn ut-btn-ghost" onClick={() => toggleArchive(t)}>
+                            {t.archived ? "↩️ Unarchive" : "📦 Archive"}
+                          </button>
 
-                      <button className="ut-btn ut-btn-ghost" onClick={() => shareToPublic(t)} title="Share anonymously to public feed">
-                        🌍 Share
-                      </button>
+                          <button className="ut-btn ut-btn-ghost" onClick={() => shareToPublic(t)} title="Share anonymously to public feed">
+                            🌍 Share
+                          </button>
 
-                      <button className="ut-btn ut-btn-ghost" onClick={() => releaseThought(t.id)} title="Gentle delete">
-                        🌬️ Release
-                      </button>
+                          <button className="ut-btn ut-btn-ghost" onClick={() => releaseThought(t)} title="Gentle delete (to Trash)">
+                            🌬️ Release
+                          </button>
 
-                      <button className="ut-btn ut-btn-danger" onClick={() => deleteThoughtConfirmed(t)} title="Permanent delete">
-                        Delete
-                      </button>
+                          <button className="ut-btn ut-btn-danger" onClick={() => moveToTrash(t)} title="Move to Trash">
+                            🗑️ Trash
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1013,7 +1159,7 @@ export default function Home() {
 
           {/* RIGHT: Public feed */}
           <div className="ut-card ut-card-pad ut-reminder">
-            <div className="ut-card-title">Level 17: Public feed</div>
+            <div className="ut-card-title">Public feed</div>
             <div className="ut-mini">Anonymous support space (latest posts).</div>
 
             <div className="ut-row ut-row-wrap" style={{ marginTop: 10 }}>
