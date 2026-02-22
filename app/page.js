@@ -409,7 +409,7 @@ export default function Home() {
   }, [pinEnabled, locked, autoLockMin]);
 
   const enablePin = () => {
-    const newPin = prompt("Set a 4+ digit PIN (device only):");
+    const newPin = prompt("Set a 4+ digit Device Lock (temporary privacy layer):");
     if (!newPin || newPin.length < 4) return showToast("PIN not set");
     localStorage.setItem("ut_pin", newPin);
     localStorage.setItem("ut_pin_enabled", "true");
@@ -972,22 +972,42 @@ export default function Home() {
         <div className="ut-shell">
           <div className="ut-card ut-card-pad ut-center" style={{ maxWidth: 520 }}>
             <div className="ut-title">🔐 Private Space</div>
-            <div className="ut-sub">Enter your device PIN to open Unspoken Thoughts.</div>
+            <div className="ut-sub">Enter your device lock to continue.</div>
 
             <input className="ut-input" type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="Enter PIN" />
 
-            <div className="ut-row">
+            <div className="ut-row ut-row-wrap">
               <button className="ut-btn ut-btn-primary" onClick={unlockPin}>
                 Unlock
               </button>
+
               <button className="ut-btn ut-btn-ghost" onClick={doLogout}>
                 Logout
               </button>
-            </div>
 
-            <div className="ut-mini">(PIN is stored only in this browser.)</div>
+              <button
+                className="ut-btn ut-btn-ghost"
+                onClick={() => {
+                  const ok = window.confirm(
+                    "Reset PIN? You will be logged out and need to sign in again."
+                  );
+                  if (!ok) return;
+
+                  localStorage.removeItem("ut_pin");
+                  localStorage.setItem("ut_pin_enabled", "false");
+                  setPin("");
+                  setPinEnabled(false);
+                  setLocked(false);
+                  showToast("PIN reset. Please login again.");
+                  doLogout();
+                }}
+              >
+                Forgot PIN?
+              </button>
+            </div>
           </div>
         </div>
+
         {toast ? <div className="ut-toast">{toast}</div> : null}
       </main>
     );
@@ -1096,7 +1116,7 @@ export default function Home() {
               {settingsOpen && (
                 <div className="ut-settings-dropdown">
                   {!pinEnabled ? (
-                    <button className="ut-settings-item" onClick={() => { enablePin(); setSettingsOpen(false); }}>🔐 Enable PIN</button>
+                    <button className="ut-settings-item" onClick={() => { enablePin(); setSettingsOpen(false); }}>🔐 Enable Device Lock</button>
                   ) : (
                     <>
                       <button className="ut-settings-item" onClick={() => { lockNow(); setSettingsOpen(false); }}>🔒 Lock now</button>
