@@ -1,33 +1,33 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Playfair_Display, Crimson_Text } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
   subsets: ["latin"],
+  weight: ["400", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const crimson = Crimson_Text({
+  variable: "--font-crimson",
   subsets: ["latin"],
+  weight: ["400", "600"],
+  style: ["normal", "italic"],
 });
 
 export const metadata = {
   title: "Unspoken Thoughts",
-  description: "Write. Breathe. Save what matters. Release what doesn’t.",
+  description: "Write. Breathe. Save what matters. Release what doesn't.",
   manifest: "/manifest.webmanifest",
 };
 
 export const viewport = {
-  themeColor: "#070a12",
+  themeColor: "#0a090e",
 };
-
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${playfair.variable} ${crimson.variable}`}>
         {children}
       </body>
     </html>
