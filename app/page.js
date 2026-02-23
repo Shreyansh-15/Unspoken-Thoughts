@@ -955,7 +955,16 @@ export default function Home() {
                 Continue with Google
               </button>
 
-              <p className="ut-auth-privacy">Private by design. We never read or sell your thoughts.</p>
+              <p className="ut-auth-privacy">
+                Private by design •{" "}
+                <a href="/privacy" className="ut-legal-link">
+                  Privacy Policy
+                </a>{" "}
+                •{" "}
+                <a href="/terms" className="ut-legal-link">
+                  Terms
+                </a>
+              </p>
             </div>
           </div>
         </div>
@@ -984,30 +993,47 @@ export default function Home() {
               <button className="ut-btn ut-btn-ghost" onClick={doLogout}>
                 Logout
               </button>
+            </div>
 
-              <button
-                className="ut-btn ut-btn-ghost"
-                onClick={() => {
-                  const ok = window.confirm(
-                    "Reset PIN? You will be logged out and need to sign in again."
-                  );
-                  if (!ok) return;
+            <button
+              className="ut-btn ut-btn-ghost"
+              style={{ marginTop: 12, width: "100%" }}
+              onClick={() => {
+                const ok = window.confirm(
+                  "Reset PIN? You will be logged out and need to sign in again."
+                );
+                if (!ok) return;
 
-                  localStorage.removeItem("ut_pin");
-                  localStorage.setItem("ut_pin_enabled", "false");
-                  setPin("");
-                  setPinEnabled(false);
-                  setLocked(false);
-                  showToast("PIN reset. Please login again.");
-                  doLogout();
-                }}
-              >
-                Forgot PIN?
-              </button>
+                localStorage.removeItem("ut_pin");
+                localStorage.setItem("ut_pin_enabled", "false");
+
+                setPin("");
+                setPinEnabled(false);
+                setLocked(false);
+
+                showToast("PIN reset. Please login again.");
+                doLogout();
+              }}
+            >
+              Forgot PIN? Reset (device-only)
+            </button>
+
+            <div className="ut-mini" style={{ marginTop: 10 }}>
+              (This is a temporary device-only lock stored only in this browser.)
             </div>
           </div>
         </div>
+        <footer className="ut-dashboard-footer">
+          <div className="ut-footer-inner">
+            <span>© 2026 Unspoken Thoughts</span>
 
+            <div className="ut-footer-links">
+              <a href="/privacy">Privacy Policy</a>
+              <span>•</span>
+              <a href="/terms">Terms</a>
+            </div>
+          </div>
+        </footer>
         {toast ? <div className="ut-toast">{toast}</div> : null}
       </main>
     );
